@@ -1,11 +1,20 @@
 import numpy as np
-from train_il import BCModel
+from train_coil import CoIL
 import gym_carlo
 import gym
 import time
 import argparse
 import torch
-from utils import *
+from gym_carlo.envs.interactive_controllers import GoalController
+from utilities import *
+
+
+def controller_mapping(scenario_name, control):
+    """Different scenarios have different number of goals, so let's just clip the user input -- also could be done via np.clip"""
+    if control >= len(goals[scenario_name]):
+        control = len(goals[scenario_name]) - 1
+    return control
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -29,16 +38,16 @@ if __name__ == "__main__":
     assert scenario_name in scenario_names, "--scenario argument is invalid!"
 
     if args.goal.lower() == "all":
-        env = gym.make(scenario_name + "Scenario-v0", goal=len(goals[scenario_name]))
+        goal_id = len(goals[scenario_name])
     else:
-        env = gym.make(
-            scenario_name + "Scenario-v0",
-            goal=np.argwhere(np.array(goals[scenario_name]) == args.goal.lower())[0, 0],
-        )  # hmm, unreadable
+        goal_id = np.argwhere(np.array(goals[scenario_name]) == args.goal.lower())[
+            0, 0
+        ]  # hmm, unreadable
+    env = gym.make(scenario_name + "Scenario-v0", goal=goal_id)
 
-    bc_model = BCModel(obs_sizes[scenario_name], 2)
-    ckpt_path = "./policies/" + scenario_name + "_" + args.goal.lower() + "_IL"
-    bc_model.load_state_dict(torch.load(ckpt_path))
+    coil = CoIL(obs_sizes[scenario_name], 2)
+    ckpt_path = "./policies/" + scenario_name + "_" + args.goal.lower() + "_CoIL"
+    coil.load_state_dict(torch.load(ckpt_path))
 
     episode_number = 10 if args.visualize else 100
     success_counter = 0
@@ -48,10 +57,18 @@ if __name__ == "__main__":
         obs, done = env.reset(), False
         if args.visualize:
             env.render()
+            interactive_policy = GoalController(env.world)
         while not done:
             t = time.time()
             obs = np.array(obs).reshape(1, -1)
-            action = bc_model(torch.Tensor(obs)).detach().numpy().reshape(-1)
+            u = (
+                controller_mapping(scenario_name, interactive_policy.control)
+                if args.visualize
+                else goal_id
+            )
+            action = (
+                coil(torch.Tensor(obs), torch.Tensor([u])).detach().numpy().reshape(-1)
+            )
             obs, _, done, _ = env.step(action)
             if args.visualize:
                 env.render()

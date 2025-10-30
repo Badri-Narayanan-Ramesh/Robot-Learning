@@ -8,7 +8,7 @@ import torch
 from gym_carlo.envs.interactive_controllers import KeyboardController
 from scipy.stats import multivariate_normal
 from train_ildist import MDN
-from utils import *
+from utilities import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

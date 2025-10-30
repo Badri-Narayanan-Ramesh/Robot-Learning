@@ -5,7 +5,7 @@ import gym
 import time
 import argparse
 from gym_carlo.envs.interactive_controllers import KeyboardController
-from utils import *
+from utilities import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
